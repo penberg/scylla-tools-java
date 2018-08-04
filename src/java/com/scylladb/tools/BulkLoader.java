@@ -448,8 +448,9 @@ public class BulkLoader {
         @Override
         public void finish() {
             if (batchStatement != null && !batchStatement.getStatements().isEmpty()) {
-                send(batchStatement);
+                Statement s = batchStatement;
                 batchStatement = null;
+                send(s);
             }
         }
 
@@ -496,8 +497,9 @@ public class BulkLoader {
                 return;
             }
             if (batchStatement != null && batchStatement.size() != 0) {
-                send(batchStatement);
+                Statement s = batchStatement;
                 batchStatement = null;
+                send(s);
             }
             if (batch) {
                 batchStatement = new BatchStatement(BatchStatement.Type.UNLOGGED);

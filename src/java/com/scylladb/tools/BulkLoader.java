@@ -202,7 +202,7 @@ public class BulkLoader {
         private int bytes;
 
         private final boolean batch;
-        private final boolean prepare;
+        private final Map<String, ListenableFuture<PreparedStatement>> preparedStatements;
         private final Set<String> ignoreColumns;
         private final CodecRegistry codecRegistry = new CodecRegistry();
         private final TypeCodec<ByteBuffer> blob = codecRegistry.codecFor(ByteBuffer.allocate(1));
@@ -276,7 +276,7 @@ public class BulkLoader {
             }
 
             this.batch = options.batch;
-            this.prepare = options.prepare;
+            this.preparedStatements = options.prepare ? new ConcurrentHashMap<>() : null;
             this.ignoreColumns = options.ignoreColumns;
         }
 
@@ -612,7 +612,7 @@ public class BulkLoader {
                 System.out.println();
             }
 
-            if (prepare) {
+            if (preparedStatements != null) {
                 sendPrepared(callback, key, timestamp, what, objects);
             } else {
                 send(callback, key, timestamp, what, objects);
@@ -661,9 +661,13 @@ public class BulkLoader {
 
         private void sendPrepared(final Object callback, final DecoratedKey key, final long timestamp, String what,
                 final List<Object> objects) {
-            ListenableFuture<PreparedStatement> f = session.prepareAsync(what);
-            if (verbose) {
-                System.out.println("Preparing: " + what);
+            ListenableFuture<PreparedStatement> f = preparedStatements.get(what);
+            if (f == null) {
+                if (verbose) {
+                    System.out.println("Preparing: " + what);
+                }
+                f = session.prepareAsync(what);
+                preparedStatements.put(what, f);
             }
 
             try {
